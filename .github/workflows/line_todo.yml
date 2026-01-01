@@ -1,0 +1,16 @@
+name: LINE ToDo Morning Notify
+
+on:
+  schedule:
+    - cron: '0 22 * * *'  # JST 7:00
+  workflow_dispatch:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Render API
+        run: |
+          curl -X POST \
+          -H "Authorization: Bearer ${{ secrets.CRON_TOKEN }}" \
+          https://your-render-app.onrender.com/api/notify_todo_morning
