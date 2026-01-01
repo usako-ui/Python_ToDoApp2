@@ -1,0 +1,6 @@
+Flask==2.2.5
+gspread==5.8.0
+google-auth
+python-dotenv
+gunicorn
+

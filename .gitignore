@@ -1,0 +1,16 @@
+サービスアカウント版
+# ---- 環境変数・秘密情報 ----
+.env
+service_account.json
+credentials.json
+client_secret.json
+# ---- Python ----
+__pycache__/
+venv/
+myenv/
+
+# ---- OAuth版（丸ごと除外） ----
+oauth_version/
+
+# ---- OS ----
+.DS_Store

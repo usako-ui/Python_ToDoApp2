@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>タスク一覧</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+<div class="container py-4">
+
+  <h1 class="mb-4">タスク一覧</h1>
+
+  <!-- 戻る -->
+  <a class="btn btn-secondary mb-3" href="{{ url_for('index') }}">
+    ← 登録画面へ戻る
+  </a>
+
+  <!-- フィルタ：状態 -->
+  <div class="mb-2">
+    <strong>表示：</strong>
+    <a class="btn btn-outline-primary btn-sm"
+       href="{{ url_for('task_list') }}">
+      全件
+    </a>
+    <a class="btn btn-outline-primary btn-sm"
+       href="{{ url_for('task_list', filter='todo') }}">
+      未完了のみ
+    </a>
+  </div>
+
+  <!-- フィルタ：カテゴリ -->
+  <div class="mb-2">
+    <strong>カテゴリ：</strong>
+    <a class="btn btn-outline-secondary btn-sm"
+       href="{{ url_for('task_list', category='仕事') }}">💼 仕事</a>
+    <a class="btn btn-outline-secondary btn-sm"
+       href="{{ url_for('task_list', category='家庭') }}">🏠 家庭</a>
+    <a class="btn btn-outline-secondary btn-sm"
+       href="{{ url_for('task_list', category='学習') }}">📓 学習</a>
+  </div>
+
+  <!-- 並び替え -->
+  <div class="mb-3">
+    <strong>並び替え：</strong>
+    <a class="btn btn-outline-dark btn-sm"
+       href="{{ url_for('task_list', sort='due') }}">
+      📅 期日順
+    </a>
+    <a class="btn btn-outline-dark btn-sm"
+       href="{{ url_for('task_list', sort='priority') }}">
+      🔥 優先度順
+    </a>
+  </div>
+
+  <!-- 完了タスク一括削除 -->
+  <form action="{{ url_for('delete_completed') }}"
+        method="post"
+        onsubmit="return confirm('完了済みタスクをすべて削除しますか？');"
+        class="mb-3">
+    <button class="btn btn-danger btn-sm">
+      ✔ 完了済みタスクを一括削除
+    </button>
+  </form>
+
+  <table class="table table-sm table-bordered bg-white align-middle">
+    <thead class="table-light">
+      <tr>
+        <th style="width:50px;">完了</th>
+        <th>カテゴリ</th>
+        <th>タイトル</th>
+        <th>優先度</th>
+        <th>期日</th>
+        <th>編集</th>
+        <th>削除</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for t in tasks %}
+        {% set is_overdue = (not t.Completed) and t._due and t._due < now %}
+        {% set days_left = (t._due.date() - now.date()).days if t._due else None %}
+        <tr class="{% if is_overdue %}table-danger{% elif t.Completed %}table-secondary{% endif %}">
+
+          <!-- 完了 -->
+          <td class="text-center">
+            <form action="{{ url_for('toggle', task_id=t.ID) }}" method="post">
+              <input type="checkbox"
+                     class="form-check-input"
+                     onchange="this.form.submit()"
+                     {% if t.Completed %}checked{% endif %}>
+            </form>
+          </td>
+
+          <!-- カテゴリ -->
+          <td class="text-center fs-5">
+            {% if t.Category == "仕事" %}💼
+            {% elif t.Category == "家庭" %}🏠
+            {% elif t.Category == "学習" %}📓
+            {% else %}📌
+            {% endif %}
+          </td>
+
+          <!-- タイトル -->
+          <td>
+            {% if t.Completed %}
+              <del class="text-muted">{{ t.Title }}</del>
+            {% else %}
+              {{ t.Title }}
+            {% endif %}
+          </td>
+
+          <!-- 優先度 -->
+          <td class="text-center">
+            {% if t.Priority == "高" %}
+              <span class="badge bg-danger">高</span>
+            {% elif t.Priority == "中" %}
+              <span class="badge bg-warning text-dark">中</span>
+            {% else %}
+              <span class="badge bg-secondary">低</span>
+            {% endif %}
+          </td>
+
+          <!-- ★ 改善済み：期日表示 -->
+          <td>
+            {% if not t._due %}
+              —
+            {% elif days_left == 0 %}
+              <span class="fw-bold text-danger">今日 {{ t._due.strftime("%H:%M") }}まで</span>
+            {% elif days_left == 1 %}
+              <span class="fw-bold text-warning">明日 {{ t._due.strftime("%H:%M") }}まで</span>
+            {% else %}
+              {% if t._due.year != now.year %}
+                {{ t._due.strftime("%Y/%m/%d %H:%M") }}
+              {% else %}
+                {{ t._due.strftime("%m/%d %H:%M") }}
+              {% endif %}
+              <br>
+              <small class="text-muted">
+                あと{{ days_left }}日
+              </small>
+            {% endif %}
+          </td>
+
+          <!-- 編集 -->
+          <td>
+            <a class="btn btn-sm btn-outline-secondary"
+               href="{{ url_for('edit', task_id=t.ID) }}">
+              編集
+            </a>
+          </td>
+
+          <!-- 削除 -->
+          <td>
+            <form action="{{ url_for('delete', task_id=t.ID) }}"
+                  method="post"
+                  onsubmit="return confirm('削除しますか？');">
+              <button class="btn btn-sm btn-danger">
+                削除
+              </button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="7" class="text-center text-muted">
+            タスクはありません
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <small class="text-muted">
+    🔴 赤：期限切れ ／ 今日・明日は強調表示  
+    ｜ 💼仕事 🏠家庭 📓学習  
+    ｜ 🔥 高 → 中 → 低
+  </small>
+
+</div>
+</body>
+</html>
