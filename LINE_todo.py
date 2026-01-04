@@ -1,11 +1,12 @@
 import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 import requests
 
 import gspread
 from google.oauth2.service_account import Credentials
+
 
 # =========================
 # 環境変数読み込み
@@ -14,7 +15,6 @@ load_dotenv()
 
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_USER_ID = os.getenv("LINE_USER_ID")
-
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
 
 # ローカル用（jsonファイル）
@@ -24,6 +24,13 @@ SERVICE_ACCOUNT_FILE = os.getenv("SERVICE_ACCOUNT_FILE")
 SERVICE_ACCOUNT_JSON = os.getenv("SERVICE_ACCOUNT_JSON")
 
 TASK_SHEET_NAME = "シート1"  # ← 固定
+
+
+# =========================
+# JST 定義
+# =========================
+JST = timezone(timedelta(hours=9))
+
 
 # =========================
 # Google Sheets 接続
@@ -50,8 +57,9 @@ def get_gspread_client():
 
     return gspread.authorize(credentials)
 
+
 # =========================
-# 今日・明日の未完了タスク取得
+# 今日・明日の未完了タスク取得（JST基準）
 # =========================
 def get_today_tomorrow_tasks():
     gc = get_gspread_client()
@@ -59,7 +67,8 @@ def get_today_tomorrow_tasks():
 
     records = ws.get_all_records()
 
-    today = datetime.now().date()
+    # ---- JST 基準の日付 ----
+    today = datetime.now(JST).date()
     tomorrow = today + timedelta(days=1)
 
     result = []
@@ -75,7 +84,15 @@ def get_today_tomorrow_tasks():
             continue
 
         try:
+            # ISO形式を想定（スプレッドシート側）
             due_dt = datetime.fromisoformat(due_str)
+
+            # タイムゾーンなし → JSTとして扱う
+            if due_dt.tzinfo is None:
+                due_dt = due_dt.replace(tzinfo=JST)
+            else:
+                due_dt = due_dt.astimezone(JST)
+
         except Exception:
             continue
 
@@ -94,9 +111,10 @@ def get_today_tomorrow_tasks():
             "duedate": due_dt
         })
 
-    # 期日順
+    # ---- 期日順 ----
     result.sort(key=lambda x: x["duedate"])
     return result
+
 
 # =========================
 # LINE メッセージ整形
@@ -130,6 +148,7 @@ def build_message(tasks):
 
     return "\n\n".join(lines)
 
+
 # =========================
 # LINE Push 通知
 # =========================
@@ -151,6 +170,7 @@ def push_line_message(message):
     res = requests.post(url, headers=headers, json=payload)
     res.raise_for_status()
 
+
 # =========================
 # メイン処理
 # =========================
@@ -158,6 +178,7 @@ def main():
     tasks = get_today_tomorrow_tasks()
     message = build_message(tasks)
     push_line_message(message)
+
 
 if __name__ == "__main__":
     main()
